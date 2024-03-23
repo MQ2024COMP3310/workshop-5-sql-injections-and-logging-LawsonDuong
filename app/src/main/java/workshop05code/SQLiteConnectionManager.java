@@ -24,7 +24,7 @@ public class SQLiteConnectionManager {
         try {// resources\logging.properties
             LogManager.getLogManager().readConfiguration(new FileInputStream("resources/logging.properties"));
         } catch (SecurityException | IOException e1) {
-            e1.printStackTrace();
+            Logger.getLogger(SQLiteConnectionManager.class.getName()).log(Level.SEVERE, "error loading logging.properties", e1);
         }
     }
 
@@ -64,12 +64,11 @@ public class SQLiteConnectionManager {
         try (Connection conn = DriverManager.getConnection(databaseURL)) {
             if (conn != null) {
                 DatabaseMetaData meta = conn.getMetaData();
-                System.out.println("The driver name is " + meta.getDriverName());
-                System.out.println("A new database has been created.");
-
+                logger.log(Level.INFO, "The driver name is " + meta.getDriverName());
+                logger.log(Level.INFO, "A new database has been created.");
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            logger.log(Level.SEVERE, "error creating database", e);
         }
     }
 
@@ -88,7 +87,7 @@ public class SQLiteConnectionManager {
                     return true;
                 }
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                logger.log(Level.SEVERE, "Database connection check failed", e);
                 return false;
             }
         }
@@ -113,7 +112,7 @@ public class SQLiteConnectionManager {
                 return true;
 
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                logger.log(Level.SEVERE, "error creating Wordle tables", e);
                 return false;
             }
         }
@@ -131,13 +130,11 @@ public class SQLiteConnectionManager {
 
         try (Connection conn = DriverManager.getConnection(databaseURL);
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
                     pstmt.setInt(1, id);
                     pstmt.setString(2, word);
-
-            pstmt.executeUpdate();
+                    pstmt.executeUpdate();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            logger.log(Level.SEVERE, "error adding word", e);
         }
 
     }
@@ -149,11 +146,11 @@ public class SQLiteConnectionManager {
      * @return true if guess exists in the database, false otherwise
      */
     public boolean isValidWord(String guess) {
-        String sql = "SELECT count(id) as total FROM validWords WHERE word like'" + guess + "';";
+        String sql = "SELECT count(id) as total FROM validWords WHERE word = ?";
 
         try (Connection conn = DriverManager.getConnection(databaseURL);
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+            stmt.setString(1, guess);
             ResultSet resultRows = stmt.executeQuery();
             if (resultRows.next()) {
                 int result = resultRows.getInt("total");
@@ -163,7 +160,7 @@ public class SQLiteConnectionManager {
             return false;
 
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            logger.log(Level.SEVERE, "error validating word", e);
             return false;
         }
 

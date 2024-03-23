@@ -1,35 +1,31 @@
 package workshop05code;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 //Included for the logging exercise
-import java.io.FileInputStream;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-/**
- *
- * @author sqlitetutorial.net
- */
 public class App {
     // Start code for logging exercise
     static {
         // must set before the Logger
         // loads logging.properties from the classpath
-        try {// resources\logging.properties
+        try {
             LogManager.getLogManager().readConfiguration(new FileInputStream("resources/logging.properties"));
         } catch (SecurityException | IOException e1) {
-            e1.printStackTrace();
+            Logger.getLogger(App.class.getName()).log(Level.SEVERE, "error loading logging.properties", e1);
         }
     }
 
     private static final Logger logger = Logger.getLogger(App.class.getName());
     // End code for logging exercise
-    
+
     /**
      * @param args the command line arguments
      */
@@ -37,17 +33,17 @@ public class App {
         SQLiteConnectionManager wordleDatabaseConnection = new SQLiteConnectionManager("words.db");
 
         wordleDatabaseConnection.createNewDatabase("words.db");
-        if (wordleDatabaseConnection.checkIfConnectionDefined()) {
-            System.out.println("Wordle created and connected.");
-        } else {
-            System.out.println("Not able to connect. Sorry!");
+        if (!wordleDatabaseConnection.checkIfConnectionDefined()) {
+            logger.log(Level.SEVERE, "Not able to connect. Sorry!");
             return;
+        } else {
+            logger.log(Level.INFO, "Wordle created and connected.");
         }
-        if (wordleDatabaseConnection.createWordleTables()) {
-            System.out.println("Wordle structures in place.");
-        } else {
-            System.out.println("Not able to launch. Sorry!");
+        if (!wordleDatabaseConnection.createWordleTables()) {
+            logger.log(Level.SEVERE, "Not able to launch. Sorry!");
             return;
+        } else {
+            logger.log(Level.INFO, "Wordle structures in place.");
         }
 
         // let's add some words to valid 4 letter words from the data.txt file
@@ -56,38 +52,42 @@ public class App {
             String line;
             int i = 1;
             while ((line = br.readLine()) != null) {
-                System.out.println(line);
-                wordleDatabaseConnection.addValidWord(i, line);
-                i++;
+                if (line.length() != 4) { 
+                    logger.log(Level.SEVERE, "Invalid word from file: " + line);
+                } else {
+                    wordleDatabaseConnection.addValidWord(i, line);
+                    logger.log(Level.INFO, "Valid word added: " + line);
+                    i++;
+                }
             }
-
         } catch (IOException e) {
-            System.out.println("Not able to load . Sorry!");
-            System.out.println(e.getMessage());
-            return;
+            logger.log(Level.WARNING, "Not able to load words from file.", e);
         }
 
         // let's get them to enter a word
 
         try (Scanner scanner = new Scanner(System.in)) {
-            System.out.print("Enter a 4 letter word for a guess or q to quit: ");
-            String guess = scanner.nextLine();
-
-            while (!guess.equals("q")) {
-                System.out.println("You've guessed '" + guess+"'.");
-
-                if (wordleDatabaseConnection.isValidWord(guess)) { 
-                    System.out.println("Success! It is in the the list.\n");
-                }else{
-                    System.out.println("Sorry. This word is NOT in the the list.\n");
-                }
-
-                System.out.print("Enter a 4 letter word for a guess or q to quit: " );
+            String guess;
+            do {
+                System.out.print("Enter a 4 letter word for a guess or q to quit: ");
                 guess = scanner.nextLine();
-            }
-        } catch (NoSuchElementException | IllegalStateException e) {
-            e.printStackTrace();
-        }
 
+                if (!guess.equals("q")) {
+                    if (guess.length() != 4) {
+                        logger.log(Level.WARNING, "Invalid guess: " + guess + " (guesses must be 4 letters)");
+                        System.out.println("Invalid guess. Please ensure your guess is exactly 4 letters.");
+                    } else {
+                        if (wordleDatabaseConnection.isValidWord(guess)) { 
+                            System.out.println("Success! It is in the list.\n");
+                        } else {
+                            System.out.println("Sorry. This word is NOT in the list.\n");
+                            logger.log(Level.INFO, "Invalid guess (not in list): " + guess);
+                        }
+                    }
+                }
+            } while (!guess.equals("q"));
+        } catch (NoSuchElementException | IllegalStateException e) {
+           logger.log(Level.SEVERE, "error occurred during input.", e);
+        }
     }
 }
